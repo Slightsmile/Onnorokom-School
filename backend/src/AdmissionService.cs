@@ -122,16 +122,17 @@ public class AdmissionService
     public async Task<HoldDto> GetHoldAsync(string holdId)
     {
         using var conn = await _db.OpenAsync();
-        var row = await conn.QuerySingleOrDefaultAsync<HoldRow?>(
+        var rows = await conn.QueryAsync<HoldRow>(
             @"SELECT h.id AS HoldId, h.class_id AS ClassId, c.name AS ClassName, h.student_id AS StudentId,
                      h.status AS Status, h.expires_at AS ExpiresAt
               FROM holds h JOIN classes c ON c.id = h.class_id
               WHERE h.id = @holdId",
             new { holdId });
-        if (row is null) throw new NotFoundException();
+        var row = rows.FirstOrDefault();
+        if (row.HoldId is null) throw new NotFoundException();
         var now = DateTime.UtcNow;
-        return new HoldDto(row.Value.HoldId, row.Value.ClassId, row.Value.ClassName, row.Value.StudentId,
-            EffectiveStatus(row.Value.Status, row.Value.ExpiresAt, now), row.Value.ExpiresAt);
+        return new HoldDto(row.HoldId, row.ClassId, row.ClassName, row.StudentId,
+            EffectiveStatus(row.Status, row.ExpiresAt, now), row.ExpiresAt);
     }
 
     public async Task<HoldDto> ConfirmHoldAsync(string holdId, string studentId)
@@ -139,23 +140,24 @@ public class AdmissionService
         using var conn = await _db.OpenAsync();
         using var tx = await conn.BeginTransactionAsync();
 
-        var row = await conn.QuerySingleOrDefaultAsync<HoldRow?>(
+        var rows = await conn.QueryAsync<HoldRow>(
             @"SELECT h.id AS HoldId, h.class_id AS ClassId, c.name AS ClassName, h.student_id AS StudentId,
                      h.status AS Status, h.expires_at AS ExpiresAt
               FROM holds h JOIN classes c ON c.id = h.class_id
               WHERE h.id = @holdId FOR UPDATE OF h",
             new { holdId }, tx);
-        if (row is null) throw new NotFoundException();
-        if (row.Value.StudentId != studentId) throw new ForbiddenException();
+        var row = rows.FirstOrDefault();
+        if (row.HoldId is null) throw new NotFoundException();
+        if (row.StudentId != studentId) throw new ForbiddenException();
 
         var now = DateTime.UtcNow;
-        if (row.Value.Status == "CONFIRMED")
+        if (row.Status == "CONFIRMED")
         {
             await tx.CommitAsync();
-            return new HoldDto(row.Value.HoldId, row.Value.ClassId, row.Value.ClassName, studentId, "CONFIRMED", row.Value.ExpiresAt);
+            return new HoldDto(row.HoldId, row.ClassId, row.ClassName, studentId, "CONFIRMED", row.ExpiresAt);
         }
 
-        if (row.Value.Status != "HELD" || row.Value.ExpiresAt <= now)
+        if (row.Status != "HELD" || row.ExpiresAt <= now)
             throw new InvalidHoldStateException("Hold is not active and cannot be confirmed.");
 
         await conn.ExecuteAsync(
@@ -163,7 +165,7 @@ public class AdmissionService
             new { holdId, now }, tx);
         await tx.CommitAsync();
 
-        return new HoldDto(row.Value.HoldId, row.Value.ClassId, row.Value.ClassName, studentId, "CONFIRMED", row.Value.ExpiresAt);
+        return new HoldDto(row.HoldId, row.ClassId, row.ClassName, studentId, "CONFIRMED", row.ExpiresAt);
     }
 
     public async Task CancelHoldAsync(string holdId, string studentId)

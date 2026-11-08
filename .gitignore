@@ -6,3 +6,4 @@ dist/
 .vs/
 .env
 *.log
+.claude/
