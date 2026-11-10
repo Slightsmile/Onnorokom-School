@@ -3,9 +3,20 @@ using Backend;
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddSingleton<Db>();
 builder.Services.AddSingleton<AdmissionService>();
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
+});
 builder.WebHost.UseUrls("http://0.0.0.0:8080");
 
 var app = builder.Build();
+
+app.UseCors();
 
 using (var scope = app.Services.CreateScope())
 {
@@ -59,6 +70,11 @@ app.Use(async (ctx, next) =>
     {
         ctx.Response.StatusCode = 400;
         await ctx.Response.WriteAsJsonAsync(new ApiError("bad_request", ex.Message));
+    }
+    catch (Exception)
+    {
+        ctx.Response.StatusCode = 400;
+        await ctx.Response.WriteAsJsonAsync(new ApiError("bad_request", "The request could not be processed."));
     }
 });
 
