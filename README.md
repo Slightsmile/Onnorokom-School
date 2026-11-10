@@ -31,6 +31,20 @@ Open http://localhost:5173 in a browser. Use the "Admin: Create Class" tab to
 create a class/shift, then enter a 17-digit student registration number in the
 top bar to apply, pay, or cancel applications from the other tabs.
 
+## Screenshots
+
+**Available Classes**
+
+![Available Classes](<UI/Screenshot 2026-11-10 212109.png>)
+
+**My Applications**
+
+![My Applications](<UI/Screenshot 2026-11-10 212058.png>)
+
+**Admin: Create Class**
+
+![Admin: Create Class](<UI/Screenshot 2026-11-10 212103.png>)
+
 Data persists in a named Docker volume (`db-data`), so `docker compose down`
 followed by `docker compose up` keeps previously created classes and holds.
 Use `docker compose down -v` to wipe the database.
